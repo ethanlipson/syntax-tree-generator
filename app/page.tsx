@@ -83,6 +83,29 @@ export default function Home() {
     setTreeSelection(0);
   }
 
+  const arrowButtons = (
+    <Stack spacing={2} direction="row">
+      <Button
+        className="flex-grow"
+        onClick={() =>
+          setTreeSelection(
+            treeSelection => (treeSelection - 1 + trees.length) % trees.length
+          )
+        }
+      >
+        <ArrowBackIcon />
+      </Button>
+      <Button
+        className="flex-grow"
+        onClick={() =>
+          setTreeSelection(treeSelection => (treeSelection + 1) % trees.length)
+        }
+      >
+        <ArrowForwardIcon />
+      </Button>
+    </Stack>
+  );
+
   return (
     <Stack spacing={4} p={4} direction="column" h="100svh">
       <div id="treeWrapper" className="w-full h-full">
@@ -108,35 +131,11 @@ export default function Home() {
           }}
         />
         <Button onClick={parse}>Parse</Button>
-        {trees.length > 1 && (
-          <>
-            <Stack spacing={2} direction="row">
-              <Button
-                onClick={() =>
-                  setTreeSelection(
-                    treeSelection =>
-                      (treeSelection - 1 + trees.length) % trees.length
-                  )
-                }
-              >
-                <ArrowBackIcon />
-              </Button>
-              <Button
-                onClick={() =>
-                  setTreeSelection(
-                    treeSelection => (treeSelection + 1) % trees.length
-                  )
-                }
-              >
-                <ArrowForwardIcon />
-              </Button>
-            </Stack>
-            <Text fontSize="lg" w="3em" lineHeight="2em">
-              {treeSelection + 1} / {trees.length}
-            </Text>
-          </>
-        )}
+        <div className="hidden sm:block">
+          {trees.length > 1 && arrowButtons}
+        </div>
       </Stack>
+      <div className="block sm:hidden">{trees.length > 1 && arrowButtons}</div>
     </Stack>
   );
 }

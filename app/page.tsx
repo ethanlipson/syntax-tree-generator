@@ -55,15 +55,14 @@ export default function Home() {
   const [treeSelection, setTreeSelection] = useState(0);
 
   async function parse() {
-    const partsOfSpeechResponse = await fetch('https://18.117.106.251:3000', {
+    const partsOfSpeechResponse = await fetch('/api/parts-of-speech', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
       },
       body: JSON.stringify({ sentence }),
     });
-    const partsOfSpeech = (await partsOfSpeechResponse.json())
+    const partsOfSpeech = (await partsOfSpeechResponse.json()).partsOfSpeech
       .partsOfSpeech as string[][];
 
     const posWithGuesses = partsOfSpeech.map(pos =>

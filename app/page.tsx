@@ -84,7 +84,7 @@ export default function Home() {
   }
 
   return (
-    <Stack spacing={4} p={4} direction="column" h="100vh">
+    <Stack spacing={4} p={4} direction="column" h="100svh">
       <div id="treeWrapper" className="w-full h-full">
         {trees.length > 0 ? (
           <Tree
@@ -100,7 +100,12 @@ export default function Home() {
           value={sentence}
           onChange={e => setSentence(e.target.value)}
           placeholder="Enter a sentence"
-          onKeyDown={e => e.key === 'Enter' && parse()}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              (e.target as HTMLInputElement).blur();
+              parse();
+            }
+          }}
         />
         <Button onClick={parse}>Parse</Button>
         {trees.length > 1 && (

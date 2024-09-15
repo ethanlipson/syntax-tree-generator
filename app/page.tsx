@@ -1,113 +1,138 @@
-import Image from "next/image";
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { Input, Button, Stack, Text } from '@chakra-ui/react';
+import buildForest, { TreeNode } from '@/src/build-forest';
+import fastCartesian from 'fast-cartesian';
+import Tree from 'react-d3-tree';
+import { ArrowBackIcon, ArrowForwardIcon } from '@chakra-ui/icons';
+
+const rules = [
+  ['S', ['NP', 'VP']],
+  ['NP', ['N']],
+  ['NP', ['Det', 'N']],
+  ['NP', ['AP', 'N']],
+  ['NP', ['Det', 'AP', 'N']],
+  ['NP', ['N', 'PP']],
+  ['NP', ['Det', 'N', 'PP']],
+  ['NP', ['AP', 'N', 'PP']],
+  ['NP', ['Det', 'AP', 'N', 'PP']],
+  ['VP', ['V']],
+  ['VP', ['V', 'NP']],
+  ['VP', ['V', 'CP']],
+  ['VP', ['V', 'PP']],
+  ['VP', ['V', 'NP', 'PP']],
+  ['VP', ['V', 'CP', 'PP']],
+  ['CP', ['C', 'S']],
+  ['AP', ['Adv', 'A']],
+  ['AP', ['A']],
+  ['PP', ['P', 'NP']],
+] as [string, string[]][];
+
+const terminals = ['Det', 'N', 'V', 'C', 'Adv', 'A', 'P'];
+
+function insertWords(tree: TreeNode, words: string[]) {
+  let index = 0;
+
+  function insertWordsRecursive(tree: TreeNode) {
+    if (tree.children.length > 0) {
+      for (const child of tree.children) {
+        insertWordsRecursive(child);
+      }
+    } else {
+      tree.attributes['Type'] = tree.name;
+      tree.name = words[index];
+      index++;
+    }
+  }
+
+  insertWordsRecursive(tree);
+}
 
 export default function Home() {
+  const [sentence, setSentence] = useState('');
+  const [trees, setTrees] = useState<TreeNode[]>([]);
+  const [treeSelection, setTreeSelection] = useState(0);
+
+  async function parse() {
+    const partsOfSpeechResponse = await fetch('https://18.117.106.251:3000', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
+      body: JSON.stringify({ sentence }),
+    });
+    const partsOfSpeech = (await partsOfSpeechResponse.json())
+      .partsOfSpeech as string[][];
+
+    const posWithGuesses = partsOfSpeech.map(pos =>
+      pos.length === 0 ? ['N', 'V', 'A', 'Adv'] : pos
+    );
+    const posCartesian = fastCartesian(posWithGuesses);
+
+    const newTrees = [];
+    for (const posGuess of posCartesian) {
+      const forest = buildForest(rules, terminals, posGuess);
+      for (const tree of forest) {
+        insertWords(tree, sentence.split(' '));
+        newTrees.push(tree);
+      }
+    }
+
+    setTrees(newTrees);
+    setTreeSelection(0);
+  }
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
+    <Stack spacing={4} p={4} direction="column" h="100vh">
+      <div id="treeWrapper" className="w-full h-full">
+        {trees.length > 0 ? (
+          <Tree
+            data={trees[treeSelection]}
+            orientation="vertical"
+            translate={{ x: window.innerWidth / 2, y: window.innerHeight / 10 }}
+            zoom={0.5}
+          />
+        ) : null}
       </div>
-
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-full sm:before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full sm:after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
+      <Stack spacing={4} direction="row">
+        <Input
+          value={sentence}
+          onChange={e => setSentence(e.target.value)}
+          placeholder="Enter a sentence"
+          onKeyDown={e => e.key === 'Enter' && parse()}
         />
-      </div>
-
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50 text-balance`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+        <Button onClick={parse}>Parse</Button>
+        {trees.length > 0 && (
+          <>
+            <Stack spacing={2} direction="row">
+              <Button
+                onClick={() =>
+                  setTreeSelection(
+                    treeSelection =>
+                      (treeSelection - 1 + trees.length) % trees.length
+                  )
+                }
+              >
+                <ArrowBackIcon />
+              </Button>
+              <Button
+                onClick={() =>
+                  setTreeSelection(
+                    treeSelection => (treeSelection + 1) % trees.length
+                  )
+                }
+              >
+                <ArrowForwardIcon />
+              </Button>
+            </Stack>
+            <Text fontSize="lg" w="3em" lineHeight="2em">
+              {treeSelection + 1} / {trees.length}
+            </Text>
+          </>
+        )}
+      </Stack>
+    </Stack>
   );
 }

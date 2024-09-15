@@ -103,7 +103,7 @@ export default function Home() {
           onKeyDown={e => e.key === 'Enter' && parse()}
         />
         <Button onClick={parse}>Parse</Button>
-        {trees.length > 0 && (
+        {trees.length > 1 && (
           <>
             <Stack spacing={2} direction="row">
               <Button
